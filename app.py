@@ -26,8 +26,7 @@ method = st.selectbox("Select Method", [
 ])
 
 tol = st.number_input("Tolerance", value=0.0001, format="%.6f")
-
-true_root = st.text_input("Exact Root (optional, for true error):")
+true_root = st.text_input("Exact Root (optional)")
 
 # ---------- GRAPH ----------
 def plot_function(root=None):
@@ -49,24 +48,44 @@ def show_results(data, root):
     st.write("### Iteration Table")
     st.table(data)
 
-    # Error convergence
-    errors = [row[3] for row in data]
+    # Actual error convergence
+    abs_errors = [row[3] for row in data]
+
     plt.figure()
-    plt.plot(errors)
-    plt.title("Error Convergence")
+    plt.plot(abs_errors)
+    plt.title("Actual Error Convergence")
     st.pyplot(plt)
 
     plot_function(root)
 
-    # True error (if provided)
+    # ---------- TRUE ERROR + COMPARISON ----------
     if true_root:
         try:
             true_val = float(true_root)
-            true_error = abs(true_val - root)
-            percent_error = (true_error / abs(true_val)) * 100
 
-            st.write(f"True Error: {true_error}")
+            true_errors = [abs(true_val - row[1]) for row in data]
+
+            st.write("### True Error per Iteration")
+            st.write(true_errors)
+
+            plt.figure()
+            plt.plot(true_errors, label="True Error")
+
+            # Theoretical error (if exists)
+            if len(data[0]) >= 6 and data[0][5] is not None:
+                theoretical = [row[5] for row in data]
+                plt.plot(theoretical, label="Theoretical Error")
+
+            plt.legend()
+            plt.title("Error Comparison")
+            st.pyplot(plt)
+
+            final_true_error = abs(true_val - root)
+            percent_error = (final_true_error / abs(true_val)) * 100
+
+            st.write(f"Final True Error: {final_true_error}")
             st.write(f"Percentage Error: {percent_error}%")
+
         except:
             st.warning("Invalid exact root input")
 
@@ -89,8 +108,9 @@ if method == "Bisection":
                 error = abs(c - prev_c)
                 rel_error = error/abs(c) if c != 0 else 0
                 theoretical_error = (b - a)/(2**i)
+                true_err = abs(float(true_root) - c) if true_root else None
 
-                data.append([i, c, f(c), error, rel_error, theoretical_error])
+                data.append([i, c, f(c), error, rel_error, theoretical_error, true_err])
 
                 if error < tol:
                     break
@@ -123,8 +143,9 @@ if method == "Newton-Raphson":
             x1 = x - f(x)/df(x)
             error = abs(x1 - x)
             rel_error = error/abs(x1) if x1 != 0 else 0
+            true_err = abs(float(true_root) - x1) if true_root else None
 
-            data.append([i, x1, f(x1), error, rel_error])
+            data.append([i, x1, f(x1), error, rel_error, None, true_err])
 
             if error < tol:
                 break
@@ -149,8 +170,9 @@ if method == "Secant":
             x2 = x1 - f(x1)*(x1-x0)/(f(x1)-f(x0))
             error = abs(x2 - x1)
             rel_error = error/abs(x2) if x2 != 0 else 0
+            true_err = abs(float(true_root) - x2) if true_root else None
 
-            data.append([i, x2, f(x2), error, rel_error])
+            data.append([i, x2, f(x2), error, rel_error, None, true_err])
 
             if error < tol:
                 break
@@ -175,8 +197,9 @@ if method == "Regula Falsi":
                 c = (a*f(b) - b*f(a))/(f(b)-f(a))
                 error = abs(c - prev_c)
                 rel_error = error/abs(c) if c != 0 else 0
+                true_err = abs(float(true_root) - c) if true_root else None
 
-                data.append([i, c, f(c), error, rel_error])
+                data.append([i, c, f(c), error, rel_error, None, true_err])
 
                 if error < tol:
                     break
@@ -216,6 +239,7 @@ if method == "Trapezoidal Rule":
             except:
                 st.warning("Invalid exact value")
 
+# ---------- SIMPSON ----------
 if method == "Simpson's Rule":
     a = st.number_input("Lower limit", value=0.0)
     b = st.number_input("Upper limit", value=1.0)
