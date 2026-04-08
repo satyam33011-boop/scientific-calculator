@@ -2,6 +2,7 @@ import streamlit as st
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 st.set_page_config(page_title="Scientific Calculator", layout="centered")
 st.title("🔬 Scientific Calculator with Objective Error Analysis")
@@ -19,10 +20,7 @@ method = st.selectbox("Select Method", [
     "Bisection",
     "Newton-Raphson",
     "Secant",
-    "Regula Falsi",
-    "Trapezoidal Rule",
-    "Simpson's Rule",
-    "Numerical Differentiation"
+    "Regula Falsi"
 ])
 
 tol = st.number_input("Tolerance", value=0.0001, format="%.6f")
@@ -45,86 +43,79 @@ def plot_function(root=None):
 # ---------- RESULT DISPLAY ----------
 def show_results(data, root):
     st.success(f"Root ≈ {round(root,6)}")
-    st.write("### Iteration Table")
-    st.table(data)
 
-    # Actual error convergence
-    abs_errors = [row[3] for row in data]
+    # Create DataFrame with headings
+    columns = ["Iter", "x", "f(x)", "Abs Error", "Rel Error", "Theoretical Error", "True Error"]
+    df = pd.DataFrame(data, columns=columns)
 
+    st.write("### 📊 Iteration Table with Error Types")
+    st.dataframe(df)
+
+    # Convergence graph
     plt.figure()
-    plt.plot(abs_errors)
-    plt.title("Actual Error Convergence")
+    plt.plot(df["Abs Error"])
+    plt.title("📉 Approximate Error Convergence")
+    plt.xlabel("Iteration")
+    plt.ylabel("Absolute Error")
     st.pyplot(plt)
 
     plot_function(root)
 
-    # ---------- TRUE ERROR + COMPARISON ----------
+    # ---------- TRUE ERROR GRAPH ----------
     if true_root:
         try:
             true_val = float(true_root)
 
-            true_errors = [abs(true_val - row[1]) for row in data]
-
-            st.write("### True Error per Iteration")
-            st.write(true_errors)
-
             plt.figure()
-            plt.plot(true_errors, label="True Error")
+            plt.plot(df["True Error"], label="True Error")
 
-            # Theoretical error (if exists)
-            if len(data[0]) >= 6 and data[0][5] is not None:
-                theoretical = [row[5] for row in data]
-                plt.plot(theoretical, label="Theoretical Error")
+            if "Theoretical Error" in df.columns:
+                plt.plot(df["Theoretical Error"], label="Theoretical Error")
 
             plt.legend()
-            plt.title("Error Comparison")
+            plt.title("📊 Error Comparison (True vs Theoretical)")
             st.pyplot(plt)
 
             final_true_error = abs(true_val - root)
             percent_error = (final_true_error / abs(true_val)) * 100
 
-            st.write(f"Final True Error: {final_true_error}")
-            st.write(f"Percentage Error: {percent_error}%")
+            st.write(f"### ✅ Final True Error: {final_true_error}")
+            st.write(f"### ✅ Percentage Error: {percent_error}%")
 
         except:
             st.warning("Invalid exact root input")
 
-# ================= ROOT METHODS =================
-
-# ---------- BISECTION ----------
+# ================= BISECTION =================
 if method == "Bisection":
     a = st.number_input("a", value=1.0)
     b = st.number_input("b", value=2.0)
 
     if st.button("Calculate"):
-        if f(a)*f(b) >= 0:
-            st.error("Invalid interval")
-        else:
-            data = []
-            prev_c = a
+        data = []
+        prev_c = a
 
-            for i in range(1, 100):
-                c = (a + b)/2
-                error = abs(c - prev_c)
-                rel_error = error/abs(c) if c != 0 else 0
-                theoretical_error = (b - a)/(2**i)
-                true_err = abs(float(true_root) - c) if true_root else None
+        for i in range(1, 100):
+            c = (a + b)/2
+            error = abs(c - prev_c)
+            rel_error = error/abs(c) if c != 0 else 0
+            theoretical_error = (b - a)/(2**i)
+            true_err = abs(float(true_root) - c) if true_root else None
 
-                data.append([i, c, f(c), error, rel_error, theoretical_error, true_err])
+            data.append([i, c, f(c), error, rel_error, theoretical_error, true_err])
 
-                if error < tol:
-                    break
+            if error < tol:
+                break
 
-                if f(a)*f(c) < 0:
-                    b = c
-                else:
-                    a = c
+            if f(a)*f(c) < 0:
+                b = c
+            else:
+                a = c
 
-                prev_c = c
+            prev_c = c
 
-            show_results(data, c)
+        show_results(data, c)
 
-# ---------- NEWTON ----------
+# ================= NEWTON =================
 if method == "Newton-Raphson":
     x = st.number_input("Initial Guess", value=1.5)
 
@@ -136,10 +127,6 @@ if method == "Newton-Raphson":
             return (f(x+h) - f(x-h)) / (2*h)
 
         for i in range(1, 100):
-            if df(x) == 0:
-                st.error("Derivative = 0")
-                break
-
             x1 = x - f(x)/df(x)
             error = abs(x1 - x)
             rel_error = error/abs(x1) if x1 != 0 else 0
@@ -154,7 +141,7 @@ if method == "Newton-Raphson":
 
         show_results(data, x1)
 
-# ---------- SECANT ----------
+# ================= SECANT =================
 if method == "Secant":
     x0 = st.number_input("x0", value=1.0)
     x1 = st.number_input("x1", value=2.0)
@@ -163,10 +150,6 @@ if method == "Secant":
         data = []
 
         for i in range(1, 100):
-            if f(x1) - f(x0) == 0:
-                st.error("Division by zero")
-                break
-
             x2 = x1 - f(x1)*(x1-x0)/(f(x1)-f(x0))
             error = abs(x2 - x1)
             rel_error = error/abs(x2) if x2 != 0 else 0
@@ -181,103 +164,31 @@ if method == "Secant":
 
         show_results(data, x2)
 
-# ---------- REGULA FALSI ----------
+# ================= REGULA FALSI =================
 if method == "Regula Falsi":
     a = st.number_input("a", value=1.0)
     b = st.number_input("b", value=2.0)
 
     if st.button("Calculate"):
-        if f(a)*f(b) >= 0:
-            st.error("Invalid interval")
-        else:
-            data = []
-            prev_c = a
+        data = []
+        prev_c = a
 
-            for i in range(1, 100):
-                c = (a*f(b) - b*f(a))/(f(b)-f(a))
-                error = abs(c - prev_c)
-                rel_error = error/abs(c) if c != 0 else 0
-                true_err = abs(float(true_root) - c) if true_root else None
+        for i in range(1, 100):
+            c = (a*f(b) - b*f(a))/(f(b)-f(a))
+            error = abs(c - prev_c)
+            rel_error = error/abs(c) if c != 0 else 0
+            true_err = abs(float(true_root) - c) if true_root else None
 
-                data.append([i, c, f(c), error, rel_error, None, true_err])
+            data.append([i, c, f(c), error, rel_error, None, true_err])
 
-                if error < tol:
-                    break
+            if error < tol:
+                break
 
-                if f(a)*f(c) < 0:
-                    b = c
-                else:
-                    a = c
+            if f(a)*f(c) < 0:
+                b = c
+            else:
+                a = c
 
-                prev_c = c
+            prev_c = c
 
-            show_results(data, c)
-
-# ================= INTEGRATION =================
-
-if method == "Trapezoidal Rule":
-    a = st.number_input("Lower limit", value=0.0)
-    b = st.number_input("Upper limit", value=1.0)
-    n = st.number_input("Intervals", value=4)
-    exact_val = st.text_input("Exact Integral (optional)")
-
-    if st.button("Calculate"):
-        h = (b - a)/n
-        s = 0.5*(f(a)+f(b))
-
-        for i in range(1, int(n)):
-            s += f(a+i*h)
-
-        result = h*s
-        st.success(f"Integral ≈ {round(result,6)}")
-
-        if exact_val:
-            try:
-                exact = float(exact_val)
-                error = abs(exact - result)
-                st.write(f"True Error: {error}")
-            except:
-                st.warning("Invalid exact value")
-
-# ---------- SIMPSON ----------
-if method == "Simpson's Rule":
-    a = st.number_input("Lower limit", value=0.0)
-    b = st.number_input("Upper limit", value=1.0)
-    n = st.number_input("Even n", value=4)
-    exact_val = st.text_input("Exact Integral (optional)")
-
-    if st.button("Calculate"):
-        if n % 2 != 0:
-            st.error("n must be even")
-        else:
-            h = (b-a)/n
-            s = f(a)+f(b)
-
-            for i in range(1, int(n)):
-                s += 4*f(a+i*h) if i%2 else 2*f(a+i*h)
-
-            result = (h/3)*s
-            st.success(f"Integral ≈ {round(result,6)}")
-
-            if exact_val:
-                try:
-                    exact = float(exact_val)
-                    error = abs(exact - result)
-                    st.write(f"True Error: {error}")
-                except:
-                    st.warning("Invalid exact value")
-
-# ================= DIFFERENTIATION =================
-
-if method == "Numerical Differentiation":
-    x = st.number_input("Point x", value=1.0)
-    h = st.number_input("Step size", value=0.001)
-
-    if st.button("Calculate"):
-        fwd = (f(x+h)-f(x))/h
-        bwd = (f(x)-f(x-h))/h
-        cen = (f(x+h)-f(x-h))/(2*h)
-
-        st.write("Forward:", round(fwd,6))
-        st.write("Backward:", round(bwd,6))
-        st.write("Central:", round(cen,6))
+        show_results(data, c)
