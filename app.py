@@ -1,5 +1,7 @@
 import streamlit as st
 import math
+import matplotlib.pyplot as plt
+import numpy as np
 
 st.set_page_config(page_title="Scientific Calculator", layout="centered")
 st.title("🔬 Scientific Calculator with Error Analysis")
@@ -25,7 +27,34 @@ method = st.selectbox("Select Method", [
 
 tol = st.number_input("Tolerance", value=0.0001, format="%.6f")
 
-# ================= ROOT FINDING =================
+# ---------- GRAPH FUNCTION ----------
+def plot_function(root=None):
+    x_vals = np.linspace(-10, 10, 400)
+    y_vals = [f(x) for x in x_vals]
+
+    plt.figure()
+    plt.axhline(0)
+    plt.plot(x_vals, y_vals)
+
+    if root is not None:
+        plt.scatter(root, f(root))
+    
+    st.pyplot(plt)
+
+# ================= ROOT METHODS =================
+
+def show_results(data, root):
+    st.success(f"Root ≈ {round(root,6)}")
+    st.write("### Iteration Table")
+    st.table(data)
+
+    errors = [row[3] for row in data]
+    plt.figure()
+    plt.plot(errors)
+    plt.title("Error Convergence")
+    st.pyplot(plt)
+
+    plot_function(root)
 
 # ---------- BISECTION ----------
 if method == "Bisection":
@@ -33,32 +62,27 @@ if method == "Bisection":
     b = st.number_input("b", value=2.0)
 
     if st.button("Calculate"):
-        if f(a)*f(b) >= 0:
-            st.error("Invalid interval")
-        else:
-            data = []
-            prev_c = a
+        data = []
+        prev_c = a
 
-            for i in range(1, 100):
-                c = (a + b)/2
-                error = abs(c - prev_c)
-                rel_error = error/abs(c) if c != 0 else 0
+        for i in range(1, 100):
+            c = (a + b)/2
+            error = abs(c - prev_c)
+            rel_error = error/abs(c) if c != 0 else 0
 
-                data.append([i, c, f(c), error, rel_error])
+            data.append([i, c, f(c), error, rel_error])
 
-                if error < tol:
-                    break
+            if error < tol:
+                break
 
-                if f(a)*f(c) < 0:
-                    b = c
-                else:
-                    a = c
+            if f(a)*f(c) < 0:
+                b = c
+            else:
+                a = c
 
-                prev_c = c
+            prev_c = c
 
-            st.success(f"Root ≈ {round(c,6)}")
-            st.write("### Iteration Table")
-            st.table(data)
+        show_results(data, c)
 
 # ---------- NEWTON ----------
 if method == "Newton-Raphson":
@@ -72,10 +96,6 @@ if method == "Newton-Raphson":
             return (f(x+h) - f(x-h)) / (2*h)
 
         for i in range(1, 100):
-            if df(x) == 0:
-                st.error("Derivative = 0")
-                break
-
             x1 = x - f(x)/df(x)
             error = abs(x1 - x)
             rel_error = error/abs(x1) if x1 != 0 else 0
@@ -87,9 +107,7 @@ if method == "Newton-Raphson":
 
             x = x1
 
-        st.success(f"Root ≈ {round(x1,6)}")
-        st.write("### Iteration Table")
-        st.table(data)
+        show_results(data, x1)
 
 # ---------- SECANT ----------
 if method == "Secant":
@@ -100,11 +118,7 @@ if method == "Secant":
         data = []
 
         for i in range(1, 100):
-            if f(x1) - f(x0) == 0:
-                st.error("Division by zero")
-                break
-
-            x2 = x1 - f(x1)*(x1 - x0)/(f(x1) - f(x0))
+            x2 = x1 - f(x1)*(x1-x0)/(f(x1)-f(x0))
             error = abs(x2 - x1)
             rel_error = error/abs(x2) if x2 != 0 else 0
 
@@ -115,9 +129,7 @@ if method == "Secant":
 
             x0, x1 = x1, x2
 
-        st.success(f"Root ≈ {round(x2,6)}")
-        st.write("### Iteration Table")
-        st.table(data)
+        show_results(data, x2)
 
 # ---------- REGULA FALSI ----------
 if method == "Regula Falsi":
@@ -125,85 +137,71 @@ if method == "Regula Falsi":
     b = st.number_input("b", value=2.0)
 
     if st.button("Calculate"):
-        if f(a)*f(b) >= 0:
-            st.error("Invalid interval")
-        else:
-            data = []
-            prev_c = a
+        data = []
+        prev_c = a
 
-            for i in range(1, 100):
-                c = (a*f(b) - b*f(a)) / (f(b) - f(a))
-                error = abs(c - prev_c)
-                rel_error = error/abs(c) if c != 0 else 0
+        for i in range(1, 100):
+            c = (a*f(b) - b*f(a))/(f(b)-f(a))
+            error = abs(c - prev_c)
+            rel_error = error/abs(c) if c != 0 else 0
 
-                data.append([i, c, f(c), error, rel_error])
+            data.append([i, c, f(c), error, rel_error])
 
-                if error < tol:
-                    break
+            if error < tol:
+                break
 
-                if f(a)*f(c) < 0:
-                    b = c
-                else:
-                    a = c
+            if f(a)*f(c) < 0:
+                b = c
+            else:
+                a = c
 
-                prev_c = c
+            prev_c = c
 
-            st.success(f"Root ≈ {round(c,6)}")
-            st.write("### Iteration Table")
-            st.table(data)
+        show_results(data, c)
 
 # ================= INTEGRATION =================
 
-# ---------- TRAPEZOIDAL ----------
 if method == "Trapezoidal Rule":
     a = st.number_input("Lower limit", value=0.0)
     b = st.number_input("Upper limit", value=1.0)
-    n = st.number_input("Intervals (n)", value=4)
+    n = st.number_input("Intervals", value=4)
 
     if st.button("Calculate"):
-        h = (b - a) / n
-        s = 0.5*(f(a) + f(b))
+        h = (b - a)/n
+        s = 0.5*(f(a)+f(b))
 
         for i in range(1, int(n)):
-            s += f(a + i*h)
+            s += f(a+i*h)
 
-        result = h * s
+        result = h*s
         st.success(f"Integral ≈ {round(result,6)}")
 
-# ---------- SIMPSON ----------
 if method == "Simpson's Rule":
     a = st.number_input("Lower limit", value=0.0)
     b = st.number_input("Upper limit", value=1.0)
-    n = st.number_input("Even intervals (n)", value=4)
-
-    if n % 2 != 0:
-        st.warning("n must be even")
+    n = st.number_input("Even n", value=4)
 
     if st.button("Calculate"):
-        h = (b - a) / n
-        s = f(a) + f(b)
+        h = (b-a)/n
+        s = f(a)+f(b)
 
         for i in range(1, int(n)):
-            if i % 2 == 0:
-                s += 2*f(a + i*h)
-            else:
-                s += 4*f(a + i*h)
+            s += 4*f(a+i*h) if i%2 else 2*f(a+i*h)
 
         result = (h/3)*s
         st.success(f"Integral ≈ {round(result,6)}")
 
 # ================= DIFFERENTIATION =================
 
-# ---------- NUMERICAL DIFFERENTIATION ----------
 if method == "Numerical Differentiation":
     x = st.number_input("Point x", value=1.0)
-    h = st.number_input("Step size h", value=0.001)
+    h = st.number_input("Step size", value=0.001)
 
     if st.button("Calculate"):
-        forward = (f(x+h) - f(x)) / h
-        backward = (f(x) - f(x-h)) / h
-        central = (f(x+h) - f(x-h)) / (2*h)
+        fwd = (f(x+h)-f(x))/h
+        bwd = (f(x)-f(x-h))/h
+        cen = (f(x+h)-f(x-h))/(2*h)
 
-        st.write(f"Forward Difference: {round(forward,6)}")
-        st.write(f"Backward Difference: {round(backward,6)}")
-        st.write(f"Central Difference: {round(central,6)}")
+        st.write("Forward:", round(fwd,6))
+        st.write("Backward:", round(bwd,6))
+        st.write("Central:", round(cen,6))
