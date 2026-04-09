@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 st.set_page_config(page_title="Scientific Calculator", layout="centered")
-st.title("🔬 Scientific Calculator with Objective Error Analysis")
+st.title("🔬 Scientific Calculator with Error Analysis")
 
 # ---------- FUNCTION ----------
 func_str = st.text_input("Enter function f(x):", "x**3 - x - 2")
